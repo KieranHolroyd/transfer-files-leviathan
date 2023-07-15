@@ -27,6 +27,39 @@ export default function Home() {
       });
   }, []);
 
+  async function l_openFolder(path: string) {
+    apiClient
+      .get(`/folder`, {
+        params: {
+          path,
+        },
+      })
+      .then((res) => {
+        if (res.status !== 200) {
+          setError(new Error(res.data));
+          return console.error(res.data);
+        }
+        setFiles([files[0], res.data]);
+      });
+  }
+
+  async function lhdd_openFolder(path: string) {
+    apiClient
+      .get(`/folder`, {
+        params: {
+          hdd: true,
+          path,
+        },
+      })
+      .then((res) => {
+        if (res.status !== 200) {
+          setError(new Error(res.data));
+          return console.error(res.data);
+        }
+        setFiles([res.data, files[1]]);
+      });
+  }
+
   return (
     <main
       className={`flex min-h-screen flex-col items-center justify-between p-12 ${inter.className}`}
@@ -36,16 +69,19 @@ export default function Home() {
           Leviathan Backup HDD -&gt; Leviathan [File Transfer]
         </p>
       </div>
-      <div className="grid grid-cols-2 space-x-2 relative z-0 w-full max-w-5xl items-center justify-between font-mono text-sm">
+      <div className="grid grid-cols-2 space-x-2 relative z-0 w-full max-w-5xl justify-between font-mono text-sm">
         {!error ? (
           <Fragment>
-            <div className="border-2 rounded p-2 border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
+            <div className="max-h-[50vh] overflow-y-auto border-2 rounded border-b border-gray-300 bg-gradient-to-b from-zinc-200 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:dark:bg-zinc-800/30">
+              <h1 className="bg-zinc-800/70 px-4 py-2 select-none">
+                Leviathan
+              </h1>
               <table className="w-full">
-                <thead>
+                <thead className="sticky top-0 bg-zinc-800/70 select-none">
                   <tr>
-                    <th className="text-left">Name</th>
-                    <th className="text-left">Size</th>
-                    <th className="text-left">Path</th>
+                    <th className="text-left px-4 py-3">Name</th>
+                    <th className="text-left px-4 py-3">Size</th>
+                    <th className="text-left px-4 py-3">Path</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -54,17 +90,22 @@ export default function Home() {
                       <td colSpan={3}>Loading...</td>
                     </tr>
                   )}
-                  {!loading && <FileTree files={files[1]} />}
+                  {!loading && (
+                    <FileTree openFolder={l_openFolder} files={files[1]} />
+                  )}
                 </tbody>
               </table>
             </div>
-            <div className="border-2 rounded p-2 border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
+            <div className="max-h-[50vh] overflow-y-auto border-2 rounded border-b border-gray-300 bg-gradient-to-b from-zinc-200 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:dark:bg-zinc-800/30">
+              <h1 className="bg-zinc-800/70 px-4 py-2 select-none">
+                Leviathan HDD
+              </h1>
               <table className="w-full">
                 <thead>
-                  <tr>
-                    <th className="text-left">Name</th>
-                    <th className="text-left">Size</th>
-                    <th className="text-left">Path</th>
+                  <tr className="sticky top-0 bg-zinc-800/70 select-none">
+                    <th className="text-left px-4 py-3">Name</th>
+                    <th className="text-left px-4 py-3">Size</th>
+                    <th className="text-left px-4 py-3">Path</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -73,7 +114,9 @@ export default function Home() {
                       <td colSpan={3}>Loading...</td>
                     </tr>
                   )}
-                  {!loading && <FileTree files={files[0]} />}
+                  {!loading && (
+                    <FileTree openFolder={lhdd_openFolder} files={files[0]} />
+                  )}
                 </tbody>
               </table>
             </div>
@@ -98,22 +141,38 @@ export default function Home() {
   );
 }
 
-export function FileTree({ files }: { files: Array<Files | null> }) {
+export function FileTree({
+  files,
+  openFolder,
+}: {
+  files: Array<Files | null>;
+  openFolder: (path: string) => void;
+}) {
   return (
     <Fragment>
       {files.map(
         (file) =>
           file && (
-            <tr key={file.path}>
-              <td>{file.name}</td>
-              <td>
+            <tr
+              key={file.path}
+              className="hover:bg-zinc-600/30 transition-colors"
+              onClick={() => {
+                if (file.isDirectory) {
+                  openFolder(file.path);
+                } else {
+                  // Open Modal with file info
+                }
+              }}
+            >
+              <td className="px-4 py-2">{file.name}</td>
+              <td className="px-4 py-2">
                 {!file.isDirectory ? (
                   <>{(file.size / 1024 / 1024).toFixed(3)} MB</>
                 ) : (
                   <>Folder</>
                 )}
               </td>
-              <td>/{file.name}</td>
+              <td className="px-4 py-2">/{file.name}</td>
             </tr>
           )
       )}
