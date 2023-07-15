@@ -15,54 +15,60 @@ export type ErrorRes = {
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<Array<Files | null> | ErrorRes>
+  res: NextApiResponse<Array<Array<Files | null> | void> | ErrorRes>
 ) {
-  if (!process.env.ROOT_PATH) {
-    return res.status(500).json({ error: "ROOT_PATH not set" });
-  }
-  const ROOT_DIR = process.env.ROOT_PATH;
-  // List all the files in the directory
-  const files = await fs.readdir(ROOT_DIR);
-  const filesMap = files.map(async (file) => {
-    const fileStats = await fs.lstat(path.join(ROOT_DIR, file));
-    return {
-      path: path.join(ROOT_DIR, file),
-      name: file,
-      isDirectory: fileStats.isDirectory(),
-      size: fileStats.size,
-    };
-  });
-
-  const data = (await Promise.allSettled(filesMap))
-
-    .filter((file) => file !== null && file.status === "fulfilled")
-
-    .map((file) => {
-      if (file.status === "fulfilled") {
-        return file.value;
+  const systems = ["ROOT_PATH_LEVIATHAN_HDD", "ROOT_PATH_LEVIATHAN"].map(
+    async (env) => {
+      if (!process.env[env]) {
+        return res.status(500).json({ error: `${env} not set` });
       }
-      return null;
-    })
-    .sort((a, b) => {
-      if (a?.isDirectory && !b?.isDirectory) {
-        return -1;
-      }
-      if (!a?.isDirectory && b?.isDirectory) {
-        return 1;
-      }
-      return 0;
-    })
-    .map((file) => {
-      if (file) {
+      const ROOT_DIR = process.env[env] as string;
+      // List all the files in the directory
+      const files = await fs.readdir(ROOT_DIR);
+      const filesMap = files.map(async (file) => {
+        const fileStats = await fs.lstat(path.join(ROOT_DIR, file));
         return {
-          path: file.path,
-          name: file.name,
-          size: file.size,
-          isDirectory: file.isDirectory,
+          path: path.join(ROOT_DIR, file),
+          name: file,
+          isDirectory: fileStats.isDirectory(),
+          size: fileStats.size,
         };
-      }
-      return null;
-    });
+      });
+      const data = (await Promise.allSettled(filesMap))
+
+        .filter((file) => file !== null && file.status === "fulfilled")
+
+        .map((file) => {
+          if (file.status === "fulfilled") {
+            return file.value;
+          }
+          return null;
+        })
+        .sort((a, b) => {
+          if (a?.isDirectory && !b?.isDirectory) {
+            return -1;
+          }
+          if (!a?.isDirectory && b?.isDirectory) {
+            return 1;
+          }
+          return 0;
+        })
+        .map((file) => {
+          if (file) {
+            return {
+              path: file.path,
+              name: file.name,
+              size: file.size,
+              isDirectory: file.isDirectory,
+            };
+          }
+          return null;
+        });
+
+      return data;
+    }
+  );
+  const data = await Promise.all(systems);
 
   return res.json(data);
 }
