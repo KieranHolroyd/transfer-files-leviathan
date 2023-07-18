@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Inter } from "next/font/google";
+import { Foldit, Inter } from "next/font/google";
 import { Fragment, useEffect, useState } from "react";
 import { Files } from "./api/files";
 import apiClient from "@/lib/axios";
@@ -172,7 +172,13 @@ export function FileTree({
                   <>Folder</>
                 )}
               </td>
-              <td className="px-4 py-2">/{file.name}</td>
+              <td className="px-4 py-2">
+                {file.path.length > 52
+                  ? `${file.path.slice(0, 12)}...${file.path.slice(
+                      file.path.length - 36
+                    )}`
+                  : file.path}
+              </td>
             </tr>
           )
       )}
