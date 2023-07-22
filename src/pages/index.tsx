@@ -27,38 +27,38 @@ export default function Home() {
       });
   }, []);
 
-  async function l_openFolder(path: string) {
-    apiClient
-      .get(`/folder`, {
-        params: {
-          path,
-        },
-      })
-      .then((res) => {
-        if (res.status !== 200) {
-          setError(new Error(res.data));
-          return console.error(res.data);
-        }
-        setFiles([files[0], res.data]);
-      });
-  }
+  // async function l_openFolder(path: string) {
+  //   apiClient
+  //     .get(`/folder`, {
+  //       params: {
+  //         path,
+  //       },
+  //     })
+  //     .then((res) => {
+  //       if (res.status !== 200) {
+  //         setError(new Error(res.data));
+  //         return console.error(res.data);
+  //       }
+  //       setFiles([files[0], res.data]);
+  //     });
+  // }
 
-  async function lhdd_openFolder(path: string) {
-    apiClient
-      .get(`/folder`, {
-        params: {
-          hdd: true,
-          path,
-        },
-      })
-      .then((res) => {
-        if (res.status !== 200) {
-          setError(new Error(res.data));
-          return console.error(res.data);
-        }
-        setFiles([res.data, files[1]]);
-      });
-  }
+  // async function lhdd_openFolder(path: string) {
+  //   apiClient
+  //     .get(`/folder`, {
+  //       params: {
+  //         hdd: true,
+  //         path,
+  //       },
+  //     })
+  //     .then((res) => {
+  //       if (res.status !== 200) {
+  //         setError(new Error(res.data));
+  //         return console.error(res.data);
+  //       }
+  //       setFiles([res.data, files[1]]);
+  //     });
+  // }
 
   return (
     <main
@@ -77,22 +77,14 @@ export default function Home() {
                 Leviathan
               </h1>
               <table className="w-full">
-                <thead className="sticky top-0 bg-zinc-800/70 select-none">
-                  <tr>
-                    <th className="text-left px-4 py-3">Name</th>
-                    <th className="text-left px-4 py-3">Size</th>
-                    <th className="text-left px-4 py-3">Path</th>
-                  </tr>
-                </thead>
+                <TableHead />
                 <tbody>
                   {loading && (
                     <tr>
                       <td colSpan={3}>Loading...</td>
                     </tr>
                   )}
-                  {!loading && (
-                    <FileTree openFolder={l_openFolder} files={files[1]} />
-                  )}
+                  {!loading && <FileTree files={files[1]} />}
                 </tbody>
               </table>
             </div>
@@ -101,22 +93,14 @@ export default function Home() {
                 Leviathan HDD
               </h1>
               <table className="w-full">
-                <thead>
-                  <tr className="sticky top-0 bg-zinc-800/70 select-none">
-                    <th className="text-left px-4 py-3">Name</th>
-                    <th className="text-left px-4 py-3">Size</th>
-                    <th className="text-left px-4 py-3">Path</th>
-                  </tr>
-                </thead>
+                <TableHead />
                 <tbody>
                   {loading && (
                     <tr>
                       <td colSpan={3}>Loading...</td>
                     </tr>
                   )}
-                  {!loading && (
-                    <FileTree openFolder={lhdd_openFolder} files={files[0]} />
-                  )}
+                  {!loading && <FileTree files={files[0]} />}
                 </tbody>
               </table>
             </div>
@@ -141,46 +125,66 @@ export default function Home() {
   );
 }
 
-export function FileTree({
-  files,
-  openFolder,
-}: {
-  files: Array<Files | null>;
-  openFolder: (path: string) => void;
-}) {
+function TableHead() {
+  return (
+    <thead className="sticky top-0 bg-zinc-800/70 select-none">
+      <tr>
+        <th className="text-left px-4 py-3">Name</th>
+        <th className="text-left px-4 py-3">Size</th>
+        <th className="text-left px-4 py-3">Path</th>
+      </tr>
+    </thead>
+  );
+}
+
+export function FileTree({ files }: { files: Array<Files | null> }) {
   return (
     <Fragment>
-      {files.map(
-        (file) =>
-          file && (
-            <tr
-              key={file.path}
-              className="hover:bg-zinc-600/30 transition-colors"
-              onClick={() => {
-                if (file.isDirectory) {
-                  openFolder(file.path);
-                } else {
-                  // Open Modal with file info
-                }
-              }}
-            >
-              <td className="px-4 py-2">{file.name}</td>
-              <td className="px-4 py-2">
-                {!file.isDirectory ? (
-                  <>{(file.size / 1024 / 1024).toFixed(3)} MB</>
-                ) : (
-                  <>Folder</>
-                )}
-              </td>
-              <td className="px-4 py-2">
-                {file.path.length > 52
-                  ? `${file.path.slice(0, 12)}...${file.path.slice(
-                      file.path.length - 36
-                    )}`
-                  : file.path}
-              </td>
-            </tr>
-          )
+      {files.map((file) => file && <FileRow key={file.path} file={file} />)}
+    </Fragment>
+  );
+}
+
+export function FileRow({ file }: { file: Files }) {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <Fragment>
+      <tr
+        key={file.path}
+        className="hover:bg-zinc-600/30 transition-colors"
+        onClick={() => setVisible(!visible)}
+      >
+        <td className="px-4 py-2">{file.name}</td>
+        <td className="px-4 py-2">
+          {!file.isDirectory ? (
+            <>{(file.size / 1024 / 1024).toFixed(3)} MB</>
+          ) : (
+            <>Folder</>
+          )}
+        </td>
+        <td className="px-4 py-2">
+          {file.path?.length > 52
+            ? `${file.path.slice(0, 12)}...${file.path.slice(
+                file.path.length - 36
+              )}`
+            : file.path}
+        </td>
+      </tr>
+      {file.isDirectory && (
+        <tr>
+          <td colSpan={3} className="p-0">
+            <table className={`${visible ? "ml-4" : "hidden"}`}>
+              <TableHead />
+              <tbody>
+                {file.files &&
+                  file.files.map((file) => (
+                    <FileRow key={file.path} file={file} />
+                  ))}
+              </tbody>
+            </table>
+          </td>
+        </tr>
       )}
     </Fragment>
   );

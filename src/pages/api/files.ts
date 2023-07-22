@@ -7,6 +7,7 @@ export type Files = {
   path: string;
   name: string;
   size: number;
+  files: Files[] | false;
   isDirectory: boolean;
 };
 export type ErrorRes = {
@@ -24,16 +25,7 @@ export default async function handler(
       }
       const ROOT_DIR = process.env[env] as string;
       // List all the files in the directory
-      const files = await fs.readdir(ROOT_DIR);
-      const filesMap = files.map(async (file) => {
-        const fileStats = await fs.lstat(path.join(ROOT_DIR, file));
-        return {
-          path: path.join(ROOT_DIR, file),
-          name: file,
-          isDirectory: fileStats.isDirectory(),
-          size: fileStats.size,
-        };
-      });
+      const filesMap = await recursiveFileMap(ROOT_DIR);
       const data = (await Promise.allSettled(filesMap))
 
         .filter((file) => file !== null && file.status === "fulfilled")
@@ -52,17 +44,6 @@ export default async function handler(
             return 1;
           }
           return 0;
-        })
-        .map((file) => {
-          if (file) {
-            return {
-              path: file.path,
-              name: file.name,
-              size: file.size,
-              isDirectory: file.isDirectory,
-            };
-          }
-          return null;
         });
 
       return data;
@@ -71,4 +52,35 @@ export default async function handler(
   const data = await Promise.all(systems);
 
   return res.json(data);
+}
+
+async function recursiveFileMap(
+  ROOT_DIR: string,
+  recursive = false
+): Promise<Promise<Files>[] | Files[]> {
+  const files = await fs.readdir(ROOT_DIR);
+  const filesMap = files.map(async (file) => {
+    const fileStats = await fs.lstat(path.join(ROOT_DIR, file));
+    const isDirectory = fileStats.isDirectory();
+    return {
+      path: path.join(ROOT_DIR, file),
+      name: file,
+      isDirectory,
+      files: isDirectory
+        ? await recursiveFileMap(path.join(ROOT_DIR, file), true)
+        : false,
+      size: fileStats.size,
+    } as Files;
+  });
+  return recursive
+    ? (await Promise.all(filesMap)).sort((a, b) => {
+        if (a?.isDirectory && !b?.isDirectory) {
+          return -1;
+        }
+        if (!a?.isDirectory && b?.isDirectory) {
+          return 1;
+        }
+        return 0;
+      })
+    : filesMap;
 }
