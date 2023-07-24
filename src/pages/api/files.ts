@@ -2,6 +2,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import fs from "fs/promises";
 import path from "path";
+import { existsSync } from "fs";
+
+export type FilesTree = Array<Array<Files | null> | void>;
 
 export type Files = {
   path: string;
@@ -16,8 +19,12 @@ export type ErrorRes = {
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<Array<Array<Files | null> | void> | ErrorRes>
+  res: NextApiResponse<FilesTree | ErrorRes>
 ) {
+  const cache = await cached();
+  if (cache) {
+    return res.json(cache);
+  }
   const systems = ["ROOT_PATH_LEVIATHAN_HDD", "ROOT_PATH_LEVIATHAN"].map(
     async (env) => {
       if (!process.env[env]) {
@@ -51,6 +58,8 @@ export default async function handler(
   );
   const data = await Promise.all(systems);
 
+  await cache_files(data);
+
   return res.json(data);
 }
 
@@ -83,4 +92,41 @@ async function recursiveFileMap(
         return 0;
       })
     : filesMap;
+}
+
+async function cached(): Promise<FilesTree | false> {
+  if (process.env.CACHE_DIR) {
+    await ensureCacheFileExists();
+    const cached = await fs.readFile(
+      `${process.env.CACHE_DIR as string}/files.json`,
+      {
+        encoding: "utf-8",
+      }
+    );
+    if (!cached || cached === "") {
+      return false;
+    }
+    return JSON.parse(cached);
+  }
+  return false;
+}
+
+async function cache_files(data: FilesTree) {
+  if (process.env.CACHE_DIR) {
+    await ensureCacheFileExists();
+
+    await fs.writeFile(
+      `${process.env.CACHE_DIR as string}/files.json`,
+      JSON.stringify(data)
+    );
+  }
+}
+
+async function ensureCacheFileExists() {
+  const cache_file_exists = existsSync(
+    `${process.env.CACHE_DIR as string}/files.json`
+  );
+  if (!cache_file_exists) {
+    await fs.writeFile(`${process.env.CACHE_DIR as string}/files.json`, "");
+  }
 }
