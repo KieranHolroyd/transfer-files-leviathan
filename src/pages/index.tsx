@@ -25,6 +25,7 @@ export default function Home() {
       .catch((err) => {
         setError(new Error(err));
       });
+
   }, []);
 
   // async function l_openFolder(path: string) {

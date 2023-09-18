@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import fs from "fs/promises";
 import path from "path";
 import { existsSync } from "fs";
+const {Database, SQLQueryBindings} =  require("bun:sqlite")
 
 export type FilesTree = Array<Array<Files | null> | void>;
 
@@ -16,6 +17,8 @@ export type Files = {
 export type ErrorRes = {
   error: string;
 };
+
+const db = new Database("file:./config/sqlite.db")
 
 export default async function handler(
   req: NextApiRequest,
@@ -95,38 +98,45 @@ async function recursiveFileMap(
 }
 
 async function cached(): Promise<FilesTree | false> {
-  if (process.env.CACHE_DIR) {
-    await ensureCacheFileExists();
-    const cached = await fs.readFile(
-      `${process.env.CACHE_DIR as string}/files.json`,
-      {
-        encoding: "utf-8",
+    ensureDatabaseIsReady();
+    const cached = db.query<FileCache, SQLQueryBindings>("SELECT * FROM `file-cache` ORDER BY 'created_at' DESC").get({});
+    if(cached !== null) {
+
+      if (!cached.files || cached.files === "") {
+        return false;
       }
-    );
-    if (!cached || cached === "") {
-      return false;
-    }
-    return JSON.parse(cached);
-  }
-  return false;
+      try {
+        return JSON.parse(cached.files);
+      } catch {
+        return false;
+      }
+    } 
+    return false;
+}
+
+type FileCache = {
+  id: number,
+  files: string,
+  created_at: string
 }
 
 async function cache_files(data: FilesTree) {
-  if (process.env.CACHE_DIR) {
-    await ensureCacheFileExists();
-
-    await fs.writeFile(
-      `${process.env.CACHE_DIR as string}/files.json`,
-      JSON.stringify(data)
-    );
+  ensureDatabaseIsReady();
+  const files = db.query<FileCache, SQLQueryBindings>("SELECT * FROM `file-cache` ORDER BY 'created_at' DESC").get({});
+  if(files?.created_at && Date.now() - Date.parse(files?.created_at) > 60 * 1000) {
+    console.log(data);
+    db.query("INSERT INTO `file-cache` (files) VALUES ($files)").run({
+      $files: JSON.stringify(data)
+    })
   }
 }
 
-async function ensureCacheFileExists() {
-  const cache_file_exists = existsSync(
-    `${process.env.CACHE_DIR as string}/files.json`
-  );
-  if (!cache_file_exists) {
-    await fs.writeFile(`${process.env.CACHE_DIR as string}/files.json`, "");
-  }
+async function ensureDatabaseIsReady() {
+  const query = db.query(`CREATE TABLE IF NOT EXISTS \`file-cache\` (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    files TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  return query.run();
 }
