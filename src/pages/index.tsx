@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { Foldit, Inter } from "next/font/google";
 import { Fragment, useEffect, useState } from "react";
-import { Files } from "./api/files";
+import { Files } from "../../server";
 import apiClient from "@/lib/axios";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -20,7 +20,7 @@ export default function Home() {
           return console.error(res.data);
         }
         setLoading(false);
-        setFiles(res.data);
+        setFiles(res.data.files);
       })
       .catch((err) => {
         setError(new Error(err));

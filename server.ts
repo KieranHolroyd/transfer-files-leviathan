@@ -31,15 +31,19 @@ Bun.serve({
         return new Response("404 Not Found", { status: 404 });
     }
   },
+   
 });
 
 export default async function handler(req: Request) {
   const cache = await cached();
   if (cache) {
-    return Response.json({
+    const res = Response.json({
       files: cache.result,
       timestamp: Date.parse(cache.timestamp),
     });
+    res.headers.set("Access-Control-Allow-Origin", "*");
+
+    return res;
   }
   const systems = ["ROOT_PATH_LEVIATHAN_HDD", "ROOT_PATH_LEVIATHAN"].map(
     async (env) => {
@@ -74,14 +78,19 @@ export default async function handler(req: Request) {
   );
 
   if (!systems) {
-    return Response.json({ error: `no systems` });
+  const res = Response.json({ error: "No Systems" });
+  res.headers.set("Access-Control-Allow-Origin", "*");
+    return res;
   }
 
   const data = await Promise.all(systems);
 
   await cache_files(data);
 
-  return Response.json({ files: data, timestamp: Date.now() });
+  const res = Response.json({ files: data, timestamp: Date.now() });
+  res.headers.set("Access-Control-Allow-Origin", "*");
+  
+  return res;
 }
 
 async function recursiveFileMap(
